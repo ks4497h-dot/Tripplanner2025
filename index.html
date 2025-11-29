@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -11,32 +11,133 @@
         font-family: 'Inter', sans-serif;
         -webkit-tap-highlight-color: transparent;
       }
-      /* Hide scrollbar for Chrome, Safari and Opera */
-      .scrollbar-hide::-webkit-scrollbar {
-        display: none;
-      }
-      /* Hide scrollbar for IE, Edge and Firefox */
-      .scrollbar-hide {
-        -ms-overflow-style: none;  /* IE and Edge */
-        scrollbar-width: none;  /* Firefox */
-      }
+      .scrollbar-hide::-webkit-scrollbar { display: none; }
+      .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "framer-motion": "https://aistudiocdn.com/framer-motion@^12.23.24",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
-</head>
+
+    <!-- 이 importmap이 핵심! Vercel에서도 동작하게 CDN 경로 고정 -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@19.2.0",
+        "react-dom": "https://esm.sh/react-dom@19.2.0",
+        "react-dom/": "https://esm.sh/react-dom@19.2.0/",
+        "lucide-react": "https://esm.sh/lucide-react@0.554.0",
+        "@google/genai": "https://esm.sh/@google/generative-ai@1.30.0",
+        "framer-motion": "https://esm.sh/framer-motion@12.23.24"
+      }
+    }
+    </script>
+  </head>
+
   <body class="bg-slate-50 text-slate-800 antialiased selection:bg-rose-200 selection:text-rose-900">
     <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
+
+    <!-- 여기만 바꿨음! 인라인 스크립트로 모든 코드 넣기 (index.tsx 없어도 됨) -->
+    <script type="module">
+      import React from 'react';
+      import ReactDOM from 'react-dom/client';
+      import { MotionConfig } from 'framer-motion';
+      import { Gem } from 'lucide-react';
+      import { GoogleGenerativeAI } from '@google/genai';
+
+      const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '여기에-키-넣지마세요';
+
+      function App() {
+        const [destination, setDestination] = React.useState('');
+        const [days, setDays] = React.useState('');
+        const [travelers, setTravelers] = React.useState('');
+        const [budget, setBudget] = React.useState('');
+        const [loading, setLoading] = React.useState(false);
+        const [plan, setPlan] = React.useState('');
+
+        const generatePlan = async () => {
+          if (!API_KEY || API_KEY.includes('여기에')) {
+            alert('Gemini API 키를 Vercel Environment Variables에 추가해주세요!');
+            return;
+          }
+          setLoading(true);
+          setPlan('');
+
+          const genAI = new GoogleGenerativeAI(API_KEY);
+          const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+          const prompt = `오사카 ${days}일 여행 계획을 만들어줘. 
+          인원: ${travelers}명, 예산: ${budget}. 
+          맛집 위주로, 이동 경로 효율적으로, 한국어로 자연스럽게 작성해줘. 
+          날짜별로 제목 달고, 아침/점심/저녁/간식/야경까지 상세히!`;
+
+          try {
+            const result = await model.generateContent(prompt);
+            const text = result.response.text();
+            setPlan(text);
+          } catch (err) {
+            setPlan('오류 발생: ' + err.message);
+          }
+          setLoading(false);
+        };
+
+        return (
+          <div className="min-h-screen p-6">
+            <div className="max-w-2xl mx-auto">
+              <div className="text-center mb-10">
+                <h1 className="text-4xl font-bold flex items-center justify-center gap-3">
+                  <Gem className="w-10 h-10 text-rose-600" />
+                  Osaka Trip Planner
+                </h1>
+                <p className="text-slate-600 mt-2">AI가 만들어주는 나만의 완벽한 오사카 여행 일정</p>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+                <input
+                  placeholder="여행지 (기본: 오사카)"
+                  value={destination}
+                  onChange={(e) => setDestination(e.target.value)}
+                  className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:outline-none focus:border-rose-400"
+                />
+                <input
+                  placeholder="몇 박 몇 일?"
+                  value={days}
+                  onChange={(e) => setDays(e.target.value)}
+                  className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:outline-none focus:border-rose-400"
+                />
+                <input
+                  placeholder="인원 수"
+                  value={travelers}
+                  onChange={(e) => setTravelers(e.target.value)}
+                  className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:outline-none focus:border-rose-400"
+                />
+                <input
+                  placeholder="예산 (예: 100만원)"
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                  className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:outline-none focus:border-rose-400"
+                />
+
+                <button
+                  onClick={generatePlan}
+                  disabled={loading}
+                  className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-5 rounded-xl transition flex items-center justify-center gap-3"
+                >
+                  {loading ? 'AI가 일정 짜는 중...' : '여행 일정 만들어줘!'}
+                </button>
+
+                {plan && (
+                  <div className="mt-8 p-6 bg-rose-50 rounded-xl whitespace-pre-wrap">
+                    {plan}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById('root')).render(
+        <MotionConfig reducedMotion="user">
+          <App />
+        </MotionConfig>
+      );
+    </script>
+  </body>
 </html>
